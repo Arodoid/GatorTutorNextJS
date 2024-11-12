@@ -18,13 +18,20 @@ import type { Subject, ActiveSubject } from "@/lib/types/subject";
  * - Just returns id and name
  * - Alphabetically sorted
  */
+
+// Async means it's not going to block the main thread
+// This is async because it's going to take some time to get the data from the database
+// Promise means it's going to return a promise which is a placeholder for a value
+// that will be available in the future(because it's async)
 export async function getAllSubjects(): Promise<Subject[]> {
+  //findMany basically asks prisma to get all the subjects from the database
   return await prisma.subject.findMany({
     select: {
       id: true,
       subjectName: true,
     },
     orderBy: {
+      // Asks prisma to sort the subjects by name (we dont need this but it's easy to add)
       subjectName: "asc", // Alphabetically sorted
     },
   });
@@ -43,6 +50,8 @@ export async function getAllSubjects(): Promise<Subject[]> {
  * 1. Find subjects that have any tutorSubjects entries
  * 2. Count how many tutors teach each subject
  * 3. Transform the data to include the count
+ *
+ * !IMPORTANT! gives subects with 0 tutors so you'll need to add logic to filter these out elsewhere
  */
 export async function getActiveSubjects(): Promise<ActiveSubject[]> {
   const activeSubjects = await prisma.subject.findMany({

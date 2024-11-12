@@ -44,7 +44,7 @@ export function Header() {
   // State management
   const [isPending, startTransition] = useTransition(); // For search transitions
   const [user, setUser] = useState<UserWithoutPassword | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isLoadingUser, setIsLoadingUser] = useState(true); 
 
   // Extract current search parameters
   const currentSearch = searchParams.get("q") ?? "";
@@ -56,6 +56,7 @@ export function Header() {
    * - Waits 300ms after user stops typing before updating
    * - Prevents excessive API calls
    * - Updates URL parameters without full page reload
+   * TODO Reevaluate if we should use this or not because some major websites like target.com
    */
   const debouncedSearch = useDebouncedCallback((term: string) => {
     const params = new URLSearchParams(searchParams.toString());

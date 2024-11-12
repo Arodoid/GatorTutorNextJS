@@ -4,52 +4,41 @@ import { toast } from "sonner";
 import { RedirectStateService } from "@/lib/services/redirect-state";
 
 /**
- * Authentication Protection Hook
+ * Authentication Protection Hook 🛡️
  *
- * Why this exists:
- * ----------------
- * Protects routes/features that require authentication while preserving form state (for example: a form they were filling out)
- * during the auth flow. Think of it as a checkpoint that remembers what you were doing.
+ * Picture this: A student finds the perfect tutor and writes them a message.
+ * They hit send, but wait - they're not logged in! Instead of losing their
+ * carefully crafted message, we:
+ * 1. Safely store their message
+ * 2. Redirect them to login
+ * 3. Bring them right back to send it
  *
- * Input/Output:
- * -------------
- * IN  -> { returnTo?: string, formState?: any, immediate?: boolean }
- * OUT -> { isChecking: boolean, checkAuth: () => Promise<boolean> }
- *
- * Usage patterns:
- * --------------
- * 1. Protect an entire page:
+ * Two ways to use this:
+ * --------------------
+ * 1. Guard an entire page:
  *    ```
  *    const { isChecking } = useAuthProtection();
  *    if (isChecking) return <LoadingSpinner />;
  *    ```
  *
- * 2. Protect a form submission:
+ * 2. Guard just the important bits (like sending a message):
  *    ```
  *    const { checkAuth } = useAuthProtection({
- *      formState: formData,
+ *      formState: messageText,
  *      immediate: false
  *    });
  *
  *    const onSubmit = async () => {
  *      if (!(await checkAuth())) return;
- *      // Continue with submission...
+ *       Message gets sent
  *    };
  *    ```
- * -------------
- * So the flow of urls would be like this:
- * /login?returnTo=/tutors/1
- * then after login they are redirected to /tutors/1
- * then after submitting the form they are redirected to /tutors/1?returnTo=/tutors
- *
- * !IMPORTANT: Works in tandem with RedirectStateService to preserve state
- * TODO: Consider adding role-based protection options for tutors/admins/etc (not for this project)
  */
 
 interface UseAuthProtectionOptions {
-  returnTo?: string; // Path to return to after auth
-  formState?: any; // Form data to preserve
-  immediate?: boolean; // Whether to check auth immediately
+  returnTo?: string; // Where to send them after login
+  formState?: any; // Any data we need to preserve (like a draft message)
+  immediate?: boolean; // Should we check auth right away or wait for an action?
 }
 
 export function useAuthProtection({
@@ -59,29 +48,33 @@ export function useAuthProtection({
 }: UseAuthProtectionOptions = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Track if we're in the middle of checking auth
   const [isChecking, setIsChecking] = useState(true);
 
   /**
-   * Authentication Check
+   * The main authentication check. This is where the magic happens.
    *
-   * !IMPORTANT: Handles both immediate and manual auth checks
+   * The sequence:
+   * 1. Ask the server "hey, is this user logged in?"
+   * 2. If yes: carry on! 🎉
+   * 3. If no: carefully preserve their work and redirect to login
    *
-   * Flow:
-   * 1. Check session endpoint
-   * 2. Save form state if needed
-   * 3. Redirect to login if unauthenticated
-   * 4. Return auth status
+   * Why async? Because checking auth requires talking to the server,
+   * and network requests take time.
    *
-   * @param redirect - Whether to redirect on auth failure
-   * @returns boolean indicating auth status
+   * @param redirect - Should we auto-redirect to login? (default: true)
+   * @returns true if authenticated, false otherwise
    */
   const checkAuth = async (redirect = true) => {
     try {
+      // First, let's check if they're logged in
       const response = await fetch("/api/auth/session");
       const { user } = await response.json();
 
+      // Not logged in? Let's handle that gracefully
       if (!user && redirect) {
-        // Save form state before redirect
+        // If they were working on something, let's save it
+        // It's like bookmarking their spot in a book
         if (formState) {
           RedirectStateService.save(
             returnTo || window.location.pathname,
@@ -89,29 +82,36 @@ export function useAuthProtection({
           );
         }
 
-        // Build redirect URL with returnTo parameter
-        // This is used to redirect the user back to the page they were on after they login example: /tutors/1?returnTo=/tutors
+        // Build the perfect return URL
+        // We're essentially leaving breadcrumbs to find our way back
         const params = new URLSearchParams(searchParams.toString());
         params.set("returnTo", returnTo || window.location.pathname);
 
+        // Time to visit the login page
+        // Don't worry, we'll bring them right back
         router.push(`/login?${params.toString()}`);
         return false;
       }
+
+      // All good! They're logged in
       return true;
     } catch (error) {
+      // Something went wrong checking auth
+      // Better to fail safely than make assumptions
       console.error("Auth check failed:", error);
       return false;
     } finally {
+      // Whether it worked or not, we're done checking
       setIsChecking(false);
     }
   };
 
   /**
-   * Immediate Auth Check
+   * If immediate=true, check auth as soon as this hook is used
+   * Perfect for protecting entire pages
    *
-   * Runs on mount if immediate option is true
-   * Useful for protecting entire pages/components
-   * TODO: Should probably be used in the layout file (I think?) but I am still learning the best practices for next.js
+   * Why useEffect? Because we can't use async directly in the hook,
+   * and we want this to run once when the component mounts
    */
   useEffect(() => {
     if (immediate) {

@@ -38,10 +38,10 @@ export default function RootLayout({
           </div>
 
           {/* Global header component */}
-          <Header />
+          <Header /> {/* The header component itself */}
 
           {/* Page content */}
-          {children}
+          {children} {/* The page content itself, it changes based on the page the user is on (pages are auto routed*/}
 
           {/* Toast notification system
               - Positioned below header (top-[80px])
@@ -62,7 +62,7 @@ export default function RootLayout({
                   "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
               },
             }}
-          />
+          /> {/* The toast component itself */}
         </div>
       </body>
     </html>

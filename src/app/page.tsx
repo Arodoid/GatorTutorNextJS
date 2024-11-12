@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 /**
- * Home Page Component
+ * Home Page Component (kinda like the index if you're familiar with that)
  *
  * Landing page with a hero section that:
  * - Centers content vertically (accounting for 80px header)
