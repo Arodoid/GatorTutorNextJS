@@ -4,12 +4,22 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && cp -r .next/static .next/standalone/.next/static",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "setup": "npm ci && npx prisma generate && npm run build",
-    "clean": "rm -rf .next node_modules"
+    "clean": "rm -rf .next node_modules",
+    "db:seed": "ts-node prisma/seed.ts",
+    "db:seed:fresh": "ts-node prisma/seed.ts --fresh",
+    "build:clean": "rm -rf .next && npm run build",
+    "build:low-memory": "NODE_OPTIONS='--max_old_space_size=512 --gc-interval=100' npm run build",
+    "build:part1": "NODE_OPTIONS='--max_old_space_size=512' next build --no-lint",
+    "build:part2": "cp -r .next/static .next/standalone/.next/static || true",
+    "build:micro": "npm run build:part1 && npm run build:part2",
+    "docker:init": "npm run prisma:generate && npm run prisma:deploy",
+    "prisma:generate": "prisma generate",
+    "prisma:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "3.3.4",
@@ -79,9 +89,9 @@
     "postcss": "^8.4.47",
     "prisma": "5.21.1",
     "tailwindcss": "^3.4.14",
-    "ts-node": "^10.9.1",
+    "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "5.3.3"
+    "typescript": "^5.3.3"
   },
   "eslintConfig": {
     "extends": [

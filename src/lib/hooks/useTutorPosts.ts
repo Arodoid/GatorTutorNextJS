@@ -1,44 +1,49 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
 import type { TutorPost, TutorPostsResponse } from "@/lib/types/tutorPost";
+import { useURLState } from "@/lib/context/url-state-context";
 
 /**
  * Tutor Posts Hook 👩‍🏫
- * 
+ *
  * Why two fetches?
  * --------------
  * 1. ALL posts: Needed to calculate price ranges for filters
  * 2. FILTERED posts: What the user actually sees based on their search
- * 
+ *
  * The flow:
  * 1. Component mounts -> Fetch everything to set up filters
  * 2. User searches -> Fetch only matching posts
  * 3. Keep track of loading states and pages for smooth UX
- * 
- * !IMPORTANT: searchParams changes trigger new filtered fetches (so we need to watch them)
  */
 export function useTutorPosts() {
   // Core post data
-  const [posts, setPosts] = useState<TutorPost[]>([]);          // Filtered posts
-  const [allPosts, setAllPosts] = useState<TutorPost[]>([]);    // All posts (for filters)
-  
+  const [posts, setPosts] = useState<TutorPost[]>([]); // Filtered posts
+  const [allPosts, setAllPosts] = useState<TutorPost[]>([]); // All posts (for filters)
+
   // Pagination tracking
-  const [totalCount, setTotalCount] = useState<number>(0);      // Total matching posts
-  const [totalPages, setTotalPages] = useState<number>(0);      // Pages of results
-  
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
+
   // Loading states
-  const [loading, setLoading] = useState(true);                 // Currently fetching?
-  const [initialLoad, setInitialLoad] = useState(true);         // First load ever?
-  const [error, setError] = useState<string | null>(null);      // Track errors
-  
+  const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // Price range for filters
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({
     min: 0,
-    max: 100,  // Default range until we calculate from real data
+    max: 100,
   });
 
-  // Next.js URL search params (like ?subject=math&price=50)
-  const searchParams = useSearchParams();
+  const { getParam } = useURLState();
+  
+  const searchTerm = getParam("q");
+  const subject = getParam("subject");
+  const minRate = getParam("minRate");
+  const maxRate = getParam("maxRate");
+  const page = getParam("page") ?? "1";
 
   // First fetch: Get ALL posts to set up our filters
   useEffect(() => {
@@ -49,12 +54,11 @@ export function useTutorPosts() {
         const data: TutorPostsResponse = await res.json();
         setAllPosts(data.posts);
 
-        // Find the real price range from actual tutor rates
         if (data.posts.length > 0) {
           const rates = data.posts.map((post) => Number(post.hourlyRate));
           setPriceRange({
-            min: Math.min(...rates),  // Cheapest tutor
-            max: Math.max(...rates),  // Most expensive tutor
+            min: Math.min(...rates),
+            max: Math.max(...rates),
           });
         }
       } catch (err) {
@@ -63,43 +67,47 @@ export function useTutorPosts() {
     }
 
     fetchAllPosts();
-  }, []);  // Empty array = run once on mount
+  }, []);
 
-  // Second fetch: Get FILTERED posts when search changes
-  useEffect(() => {
-    async function fetchPosts() {
-      // Don't show loading spinner on first load (looks jumpy)
-      if (!initialLoad) setLoading(true);
-      
-      try {
-        // Add search params to URL (like ?subject=math)
-        const res = await fetch(`/api/tutors?${searchParams.toString()}`);
-        if (!res.ok) throw new Error("Failed to fetch posts");
-        
-        const data: TutorPostsResponse = await res.json();
-        setPosts(data.posts);
-        setTotalCount(data.pagination.totalCount);
-        setTotalPages(data.pagination.totalPages);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-        setInitialLoad(false);
-      }
+  const fetchPosts = useCallback(async () => {
+    if (!initialLoad) setLoading(true);
+
+    try {
+      const queryParams = new URLSearchParams({
+        ...(searchTerm && { q: searchTerm }),
+        ...(subject && { subject }),
+        ...(minRate && { minRate }),
+        ...(maxRate && { maxRate }),
+        page,
+      });
+
+      const res = await fetch(`/api/tutors?${queryParams.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch posts");
+
+      const data: TutorPostsResponse = await res.json();
+      setPosts(data.posts);
+      setTotalCount(data.pagination.totalCount);
+      setTotalPages(data.pagination.totalPages);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+      setInitialLoad(false);
     }
+  }, [searchTerm, subject, minRate, maxRate, page, initialLoad]);
 
+  useEffect(() => {
     fetchPosts();
-  }, [searchParams]);  // Run when search params change
+  }, [fetchPosts]);
 
-  // Everything components need to display and paginate posts
   return {
-    posts,        // Filtered posts
-    allPosts,     // All posts (for filters)
+    posts,
+    allPosts,
     total: totalCount,
     pages: totalPages,
     loading,
     error,
-    priceRange,   // Min/max tutor rates
+    priceRange,
     initialLoad,
   };
 }

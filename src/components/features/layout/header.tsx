@@ -16,13 +16,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Menu } from "lucide-react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { useDebouncedCallback } from "use-debounce";
 import { useTransition } from "react";
 import { useEffect, useState, useCallback } from "react";
 import { UserWithoutPassword } from "@/lib/types/auth";
 import { LogOut, User, ChevronDown } from "lucide-react";
+import { useURLState } from "@/lib/context/url-state-context";
 
 /**
  * Header Component
@@ -35,20 +36,16 @@ import { LogOut, User, ChevronDown } from "lucide-react";
  * - Cross-tab session synchronization
  */
 export function Header() {
-  // Router and navigation state
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { getParam, setParams, clearParams, searchParams } = useURLState();
   const { activeSubjects, error } = useSubjects();
-
-  // State management
   const [isPending, startTransition] = useTransition(); // For search transitions
   const [user, setUser] = useState<UserWithoutPassword | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true); 
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
 
-  // Extract current search parameters
-  const currentSearch = searchParams.get("q") ?? "";
-  const currentSubject = searchParams.get("subject") ?? "all";
+  const currentSearch = getParam("q") ?? "";
+  const currentSubject = getParam("subject") ?? "all";
   const isOnTutorsPage = pathname === "/tutors";
 
   /**
@@ -59,14 +56,8 @@ export function Header() {
    * TODO Reevaluate if we should use this or not because some major websites like target.com
    */
   const debouncedSearch = useDebouncedCallback((term: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (term) {
-      params.set("q", term);
-    } else {
-      params.delete("q");
-    }
     startTransition(() => {
-      router.replace(`/tutors?${params.toString()}`, { scroll: false });
+      setParams({ q: term || null });
     });
   }, 300);
 
@@ -76,14 +67,8 @@ export function Header() {
    * - Triggers new search with filter
    */
   const handleSubjectChange = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value !== "all") {
-      params.set("subject", value);
-    } else {
-      params.delete("subject");
-    }
-    startTransition(() => {
-      router.push(`/tutors?${params.toString()}`);
+    setParams({
+      subject: value === "all" ? null : value,
     });
   };
 
@@ -93,9 +78,9 @@ export function Header() {
    * - Triggers debounced search
    */
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isOnTutorsPage) {
-      debouncedSearch(e.target.value);
-    }
+    startTransition(() => {
+      setParams({ q: e.target.value || null });
+    });
   };
 
   /**
@@ -106,19 +91,9 @@ export function Header() {
    */
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const searchInput = (e.target as HTMLFormElement)?.querySelector(
-      'input[type="text"]'
-    ) as HTMLInputElement;
-    const searchTerm = searchInput?.value || "";
-
-    const params = new URLSearchParams(searchParams.toString());
-    if (searchTerm) {
-      params.set("q", searchTerm);
-    } else {
-      params.delete("q");
+    if (!isOnTutorsPage) {
+      router.push(`/tutors?${searchParams.toString()}`);
     }
-
-    router.push(`/tutors?${params.toString()}`);
   };
 
   /**

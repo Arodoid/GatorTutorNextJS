@@ -16,6 +16,8 @@ import { getSession } from "@/lib/utils/auth";
  * !IMPORTANT: Only shows posts for the logged-in user
  * !NOTE: userId comes as string from session, needs conversion
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Make sure someone's logged in

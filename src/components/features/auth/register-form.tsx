@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { RedirectStateService } from "@/lib/services/redirect-state";
+import { useURLState } from "@/lib/context/url-state-context";
 
 /**
  * Registration Form Component
@@ -86,7 +87,7 @@ type FormField = {
 export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { getParam } = useURLState();
 
   // Initialize form with Zod validation
   const form = useForm<z.infer<typeof formSchema>>({
@@ -106,7 +107,7 @@ export function RegisterForm() {
    * Why? Maintains user flow context after registration
    */
   const handleRegistrationSuccess = async () => {
-    const returnTo = searchParams.get("returnTo");
+    const returnTo = getParam("returnTo");
     const savedState = RedirectStateService.load();
 
     if (returnTo) {

@@ -16,7 +16,7 @@ export async function saveFile(
 ): Promise<string> {
   // Convert the file to a format we can write to disk
   const bytes = await file.arrayBuffer(); // Get raw bytes
-  const buffer = Buffer.from(bytes); // Convert to Node.js Buffer
+  const buffer = new Uint8Array(bytes); // Convert to Uint8Array
 
   // Create unique filename using timestamp to prevent collisions
   // Example: 1647293444321-profile.jpg

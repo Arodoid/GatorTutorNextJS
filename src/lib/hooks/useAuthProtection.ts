@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { RedirectStateService } from "@/lib/services/redirect-state";
+import { useURLState } from "@/lib/context/url-state-context";
 
 /**
  * Authentication Protection Hook 🛡️
@@ -47,7 +50,7 @@ export function useAuthProtection({
   immediate = true,
 }: UseAuthProtectionOptions = {}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { setParams } = useURLState();
   // Track if we're in the middle of checking auth
   const [isChecking, setIsChecking] = useState(true);
 
@@ -65,46 +68,47 @@ export function useAuthProtection({
    * @param redirect - Should we auto-redirect to login? (default: true)
    * @returns true if authenticated, false otherwise
    */
-  const checkAuth = async (redirect = true) => {
-    try {
-      // First, let's check if they're logged in
-      const response = await fetch("/api/auth/session");
-      const { user } = await response.json();
+  const checkAuth = useCallback(
+    async (redirect = true) => {
+      try {
+        // First, let's check if they're logged in
+        const response = await fetch("/api/auth/session");
+        const { user } = await response.json();
 
-      // Not logged in? Let's handle that gracefully
-      if (!user && redirect) {
-        // If they were working on something, let's save it
-        // It's like bookmarking their spot in a book
-        if (formState) {
-          RedirectStateService.save(
-            returnTo || window.location.pathname,
-            formState
-          );
+        // Not logged in? Let's handle that gracefully
+        if (!user && redirect) {
+          // If they were working on something, let's save it
+          // It's like bookmarking their spot in a book
+          if (formState) {
+            RedirectStateService.save(
+              returnTo || window.location.pathname,
+              formState
+            );
+          }
+
+          // Update URL state and redirect
+          setParams({
+            returnTo: returnTo || window.location.pathname + window.location.search
+          });
+          
+          router.push("/login");
+          return false;
         }
 
-        // Build the perfect return URL
-        // We're essentially leaving breadcrumbs to find our way back
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("returnTo", returnTo || window.location.pathname);
-
-        // Time to visit the login page
-        // Don't worry, we'll bring them right back
-        router.push(`/login?${params.toString()}`);
+        // All good! They're logged in
+        return true;
+      } catch (error) {
+        // Something went wrong checking auth
+        // Better to fail safely than make assumptions
+        console.error("Auth check failed:", error);
         return false;
+      } finally {
+        // Whether it worked or not, we're done checking
+        setIsChecking(false);
       }
-
-      // All good! They're logged in
-      return true;
-    } catch (error) {
-      // Something went wrong checking auth
-      // Better to fail safely than make assumptions
-      console.error("Auth check failed:", error);
-      return false;
-    } finally {
-      // Whether it worked or not, we're done checking
-      setIsChecking(false);
-    }
-  };
+    },
+    [formState, returnTo, router, setParams]
+  );
 
   /**
    * If immediate=true, check auth as soon as this hook is used
@@ -117,7 +121,7 @@ export function useAuthProtection({
     if (immediate) {
       checkAuth();
     }
-  }, [immediate]);
+  }, [immediate, checkAuth]);
 
   return { isChecking, checkAuth };
 }

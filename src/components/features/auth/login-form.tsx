@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RedirectStateService } from "@/lib/services/redirect-state";
+import { useURLState } from "@/lib/context/url-state-context";
 
 /**
  * Login Form Component
@@ -66,7 +67,9 @@ export function LoginForm() {
   // Loading state for UI feedback during async operations
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { getParam } = useURLState();
+
+  const redirectTo = getParam("returnTo") ?? "/";
 
   // Form initialization with validation integration
   const form = useForm<LoginFormData>({
@@ -84,13 +87,10 @@ export function LoginForm() {
   const passwordError = form.formState.errors.password;
 
   /**
-   * Handles post-login navigation with priority order:
-   * 1. URL query parameter (immediate user intent)
-   * 2. Stored redirect state (previous navigation attempt)
-   * 3. Default dashboard (fallback destination)
+   * Updated to use URLState for redirect handling
    */
   const handleLoginSuccess = async () => {
-    const returnTo = searchParams.get("returnTo");
+    const returnTo = getParam("returnTo");
     const savedState = RedirectStateService.load();
 
     if (returnTo) {
@@ -128,6 +128,7 @@ export function LoginForm() {
 
       handleLoginSuccess();
       router.refresh(); // Refresh page to update authentication state
+      router.push(redirectTo);
     } catch (error) {
       // Detailed error feedback for better user experience
       toast.error(
